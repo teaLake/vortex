@@ -31,7 +31,7 @@ public:
     return "integer";
   }
   static int generate() {
-    return rand() % 10;
+    return rand() % 5;
   }
   static bool compare(int a, int b, int index, int errors) {
     if (a != b) {
@@ -176,7 +176,6 @@ int main(int argc, char *argv[]) {
     std::cout << "upload matrix A buffer" << std::endl;
     RT_CHECK(vx_copy_to_dev(A_buffer, h_A.data(), 0, buf_size));
   }
-
   // upload matrix B buffer
   {
     std::cout << "upload matrix B buffer" << std::endl;

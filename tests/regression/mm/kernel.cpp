@@ -10,15 +10,17 @@ void kernel_body(kernel_arg_t* __UNIFORM__ arg) {
     int col = blockIdx.x;
     int row = blockIdx.y;
 
-    int sum = 0;
-    for (int e = 0; e < size; ++e) {
-        int a = A[row * size + e];
-        int b = B[e * size + col];
-        int dot = a * b;
-        sum += dot;
-    }
+    int a = A[row*size + col];
+    int b = B[row*size + col];
+    int res = vx_mult_2_warp_matrix(a,b);
+    C[row*size + col] = res;
 
-    C[row * size + col] = sum;
+    // Old way
+    // for (int e = 0; e < size; ++e) {
+    //     sum += A[row * size + e] * B[e * size + col];
+    // }
+    // C[row * size + col] = sum;
+
 }
 
 int main() {

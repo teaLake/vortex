@@ -36,6 +36,9 @@ void AluUnit::tick() {
 		auto trace = input.front();
 		int delay = 2;
 		switch (trace->alu_type) {
+		case AluType::MULT_2_WARP_MATRIX:
+			output.push(trace, LATENCY_IMUL+delay);
+			break;
 		case AluType::ARITH:
 		case AluType::BRANCH:
 		case AluType::SYSCALL:

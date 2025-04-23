@@ -152,11 +152,11 @@ inline int vx_split_n(int predicate) {
 // The tile is Floor(sqrt(N)) by Floor(sqrt(N))
 
 //R type: .insn r opcode7, funct3, funct7, rd, rs1, rs2
-inline void vx_mult_2_warp_matrix(int a, int b)
+inline int vx_mult_2_warp_matrix(int a, int b)
 {
     size_t ret;
     //R type: .insn r opcode7, funct3, funct7, rd=ret, rs1=a, rs2=b
-    asm volatile (".insn r %1, %2, %3, %0, %4, %5" : "=r"(ret) : "i"(RISCV_CUSTOM0), "i"(CUSTOM_FUNCT3), "i"(CUSTOM_FUNCT7),"r"(a), "r"(b));
+    asm volatile (".insn r %1, %2, %3, %0, %4, %5" : "=r"(ret) : "i"(RISCV_CUSTOM0), "i"(CUSTOM_FUNCT3), "i"(CUSTOM_FUNCT7), "r"(a), "r"(b));
     return ret;
 }
 

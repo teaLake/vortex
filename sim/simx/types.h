@@ -129,7 +129,8 @@ enum class AluType {
   BRANCH,
   SYSCALL,
   IMUL,
-  IDIV
+  IDIV,
+  MULT_2_WARP_MATRIX
 };
 
 inline std::ostream &operator<<(std::ostream &os, const AluType& type) {
@@ -139,6 +140,7 @@ inline std::ostream &operator<<(std::ostream &os, const AluType& type) {
   case AluType::SYSCALL: os << "SYSCALL"; break;
   case AluType::IMUL:    os << "IMUL"; break;
   case AluType::IDIV:    os << "IDIV"; break;
+  case AluType::MULT_2_WARP_MATRIX: os << "MULT_2_WARP_MATRIX"; break;
   default: assert(false);
   }
   return os;
