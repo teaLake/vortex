@@ -31,10 +31,11 @@ module VX_alu_unit #(
     localparam BLOCK_SIZE   = `NUM_ALU_BLOCKS;
     localparam NUM_LANES    = `NUM_ALU_LANES;
     localparam PARTIAL_BW   = (BLOCK_SIZE != `ISSUE_WIDTH) || (NUM_LANES != `NUM_THREADS);
-    localparam PE_COUNT     = 1 + `EXT_M_ENABLED;
+    localparam PE_COUNT     = 1 + `EXT_M_ENABLED + 1;
     localparam PE_SEL_BITS  = `CLOG2(PE_COUNT);
     localparam PE_IDX_INT   = 0;
     localparam PE_IDX_MDV   = PE_IDX_INT + `EXT_M_ENABLED;
+    localparam PE_IDX_MAT   = PE_IDX_MDV + 1;
 
     VX_execute_if #(
         .NUM_LANES (NUM_LANES)
@@ -55,8 +56,11 @@ module VX_alu_unit #(
         .execute_if (per_block_execute_if)
     );
 
+    // Block_size = NUM_ALU_BLOCKS
     for (genvar block_idx = 0; block_idx < BLOCK_SIZE; ++block_idx) begin : g_alus
 
+        // Interface to communicate with each PE in a block 
+        // PE probably means the # of elements?
         VX_execute_if #(
             .NUM_LANES (NUM_LANES)
         ) pe_execute_if[PE_COUNT]();
@@ -70,6 +74,8 @@ module VX_alu_unit #(
             pe_select = PE_IDX_INT;
             if (`EXT_M_ENABLED && (per_block_execute_if[block_idx].data.op_args.alu.xtype == `ALU_TYPE_MULDIV))
                 pe_select = PE_IDX_MDV;
+            if (per_block_execute_if[block_idx].data.op_args.alu.xtype == `ALU_TYPE_OTHER)
+                pe_select = PE_IDX_MAT;
         end
 
         VX_pe_switch #(
@@ -111,6 +117,16 @@ module VX_alu_unit #(
             .commit_if  (pe_commit_if[PE_IDX_MDV])
         );
     `endif
+
+        VX_alu_matmul #(
+            .INSTANCE_ID (`SFORMATF(("%s-matmul%0d", INSTANCE_ID, block_idx))),
+            .NUM_LANES (NUM_LANES)
+        ) matmul_unit (
+            .clk        (clk),
+            .reset      (reset),
+            .execute_if (pe_execute_if[PE_IDX_MAT]),
+            .commit_if  (pe_commit_if[PE_IDX_MAT])
+        );
     end
 
     VX_gather_unit #(

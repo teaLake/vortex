@@ -189,19 +189,23 @@ module VX_decode import VX_gpu_pkg::*; #(
                 `USED_IREG (rs2);
                 case (func7)
                 `ifdef EXT_M_ENABLE
-                    `INST_R_F7_MUL: begin
+                    `INST_R_F7_MUL: begin // 7'b0000001
                         // MUL, MULH, MULHSU, MULHU
                         op_type = `INST_OP_BITS'(m_type);
                         op_args.alu.xtype = `ALU_TYPE_MULDIV;
                     end
                 `endif
                 `ifdef EXT_ZICOND_ENABLE
-                    `INST_R_F7_ZICOND: begin
+                    `INST_R_F7_ZICOND: begin // 7'b0000111
                         // CZERO-EQZ, CZERO-NEZ
                         op_type = func3[1] ? `INST_OP_BITS'(`INST_ALU_CZNE) : `INST_OP_BITS'(`INST_ALU_CZEQ);
                         op_args.alu.xtype = `ALU_TYPE_ARITH;
                     end
                 `endif
+                    `INST_R_F7_MATMUL: begin
+                        op_type = `INST_OP_BITS'(`INST_MAT_MUL);
+                        op_args.alu.xtype = `ALU_TYPE_OTHER;
+                    end
                     default: begin
                         op_type = `INST_OP_BITS'(r_type);
                         op_args.alu.xtype = `ALU_TYPE_ARITH;

@@ -36,6 +36,9 @@ extern "C" {
 #define RISCV_CUSTOM2   0x5B
 #define RISCV_CUSTOM3   0x7B
 
+#define CUSTOM_FUNCT7   15
+#define CUSTOM_FUNCT3   0
+
 #define csr_read(csr) ({                        \
 	size_t __r;	               		            \
 	__asm__ __volatile__ ("csrr %0, %1" : "=r" (__r) : "i" (csr) : "memory"); \
@@ -141,6 +144,19 @@ inline int vx_split(int predicate) {
 inline int vx_split_n(int predicate) {
     int ret;
     __asm__ volatile (".insn r %1, 2, 0, %0, %2, x1" : "=r"(ret) : "i"(RISCV_CUSTOM0), "r"(predicate));
+    return ret;
+}
+
+//Matrix Multiplication
+//Consider a tile to exist within 1 warp(having N threads)
+// The tile is Floor(sqrt(N)) by Floor(sqrt(N))
+
+//R type: .insn r opcode7, funct3, funct7, rd, rs1, rs2
+inline void vx_mult_2_warp_matrix(int a, int b)
+{
+    size_t ret;
+    //R type: .insn r opcode7, funct3, funct7, rd=ret, rs1=a, rs2=b
+    asm volatile (".insn r %1, %2, %3, %0, %4, %5" : "=r"(ret) : "i"(RISCV_CUSTOM0), "i"(CUSTOM_FUNCT3), "i"(CUSTOM_FUNCT7),"r"(a), "r"(b));
     return ret;
 }
 

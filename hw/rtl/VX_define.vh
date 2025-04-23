@@ -120,6 +120,7 @@
 // Opcode extensions
 `define INST_R_F7_MUL   7'b0000001
 `define INST_R_F7_ZICOND 7'b0000111
+`define INST_R_F7_MATMUL 7'b0001111
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -145,7 +146,7 @@
 `define INST_ALU_AUIPC       4'b0011
 `define INST_ALU_SLTU        4'b0100
 `define INST_ALU_SLT         4'b0101
-//`define INST_ALU_UNUSED    4'b0110
+`define INST_MAT_MUL         4'b0110  //`define INST_ALU_UNUSED    4'b0110
 `define INST_ALU_SUB         4'b0111
 `define INST_ALU_SRL         4'b1000
 `define INST_ALU_SRA         4'b1001
