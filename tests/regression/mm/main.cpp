@@ -129,6 +129,15 @@ void cleanup() {
   }
 }
 
+void print_matrix(TYPE* matrix, uint32_t size) {
+  for (uint32_t i = 0; i < size; ++i) {
+    for (uint32_t j = 0; j < size; ++j) {
+      std::cout << matrix[i*size + j] << " ";
+    }
+    std::cout << std::endl;
+  }
+}
+
 int main(int argc, char *argv[]) {
   // parse command arguments
   parse_args(argc, argv);
@@ -145,10 +154,15 @@ int main(int argc, char *argv[]) {
   std::cout << "data type: " << Comparator<TYPE>::type_str() << std::endl;
   std::cout << "matrix size: " << size << "x" << size << std::endl;
 
-  kernel_arg.grid_dim[0] = size;
-  kernel_arg.grid_dim[1] = size;
-  kernel_arg.size = size;
+  uint32_t tile_size = 4;
 
+  kernel_arg.grid_dim[0] = size / tile_size;
+  kernel_arg.grid_dim[1] = size / tile_size;
+  kernel_arg.block_dim[0] = tile_size;
+  kernel_arg.block_dim[1] = tile_size;
+  kernel_arg.size = size;
+  kernel_arg.tile_size = tile_size;
+  
   // allocate device memory
   std::cout << "allocate device memory" << std::endl;
   RT_CHECK(vx_mem_alloc(device, buf_size, VX_MEM_READ, &A_buffer));
@@ -176,11 +190,14 @@ int main(int argc, char *argv[]) {
     std::cout << "upload matrix A buffer" << std::endl;
     RT_CHECK(vx_copy_to_dev(A_buffer, h_A.data(), 0, buf_size));
   }
+  // print_matrix(h_A.data(), size);
+
   // upload matrix B buffer
   {
     std::cout << "upload matrix B buffer" << std::endl;
     RT_CHECK(vx_copy_to_dev(B_buffer, h_B.data(), 0, buf_size));
   }
+  // print_matrix(h_B.data(), size);
 
   // upload program
   std::cout << "upload program" << std::endl;

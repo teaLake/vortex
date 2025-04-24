@@ -1434,16 +1434,19 @@ void Emulator::execute(const Instr &instr, uint32_t wid, instr_trace_t *trace) {
       switch (func3) {
       case 0: {
         // MULT_2_WARP_MATRIX
-        uint32_t size = 4;
+        uint32_t size = 4; // Tensorcore Tile Size
         trace->fu_type = FUType::ALU;
         trace->alu_type = AluType::MULT_2_WARP_MATRIX;
         trace->src_regs[0] = {RegType::Integer, rsrc0};
         trace->src_regs[1] = {RegType::Integer, rsrc1};
+
         for (uint32_t t = thread_start; t < num_threads; ++t) {
+          // std::cout << "t=" << t << std::endl;
           uint32_t sum = 0;
           uint32_t row = t / size;
           uint32_t col = t % size;
           for (uint32_t k = 0; k < size; ++k) {
+            // std::cout << rsdata[(row*size)+k][0].i << " " << rsdata[col+(k*size)][1].i << std::endl;
             sum += rsdata[(row*size)+k][0].i * rsdata[col+(k*size)][1].i;
           }
           rddata[t].i = sum;
