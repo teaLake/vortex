@@ -126,8 +126,8 @@ module VX_alu_matmul #(
     // wire                   is_signed = `INST_ALU_SIGNED(alu_op);
     // wire [1:0]              op_class = is_br_op ? `INST_BR_CLASS(alu_op) : `INST_ALU_CLASS(alu_op);
 
-    // wire [NUM_LANES-1:0][`XLEN-1:0] alu_in1 = execute_if.data.rs1_data;
-    // wire [NUM_LANES-1:0][`XLEN-1:0] alu_in2 = execute_if.data.rs2_data;
+    wire [NUM_LANES-1:0][`XLEN-1:0] alu_in1 = execute_if.data.rs1_data;
+    wire [NUM_LANES-1:0][`XLEN-1:0] alu_in2 = execute_if.data.rs2_data;
 
     // wire [NUM_LANES-1:0][`XLEN-1:0] alu_in1_PC  = execute_if.data.op_args.alu.use_PC ? {NUM_LANES{execute_if.data.PC, 1'd0}} : alu_in1;
     // wire [NUM_LANES-1:0][`XLEN-1:0] alu_in2_imm = execute_if.data.op_args.alu.use_imm ? {NUM_LANES{`SEXT(`XLEN, execute_if.data.op_args.alu.imm)}} : alu_in2;
@@ -198,8 +198,16 @@ module VX_alu_matmul #(
     // end
 
     always @(*) begin
-        for (int i = 0; i < NUM_LANES; ++i) begin : g_mat_mul_result
-            mat_mul_result[i] = 'x;
+        $display("Calculating mat_mul_result");
+        $display("Value of xlen %d", `XLEN);
+        for(int x = 0; x < int'($floor($sqrt(NUM_LANES))); x++) begin
+            for(int y = 0; y < int'($floor($sqrt(NUM_LANES))); y++) begin
+                int index = x + y * int'($floor($sqrt(NUM_LANES)));
+                mat_mul_result[index] = 0;
+                for(int innerAxis = 0; innerAxis < int'($floor($sqrt(NUM_LANES))); innerAxis++) begin
+                    mat_mul_result[index] += alu_in1[innerAxis + y * int'($floor($sqrt(NUM_LANES)))] * alu_in2[x + innerAxis * int'($floor($sqrt(NUM_LANES)))];
+                end
+            end
         end
     end
 
@@ -220,18 +228,32 @@ module VX_alu_matmul #(
     // end
 
     // I deleted some of the elastic buffer inputs, but later commented them out. If there are missing signals which aren't commented out and are deleted, refer to VX_alu_int
-    VX_elastic_buffer #(
-        .DATAW (`UUID_WIDTH + `NW_WIDTH + NUM_LANES + `NR_BITS + 1 + PID_WIDTH + 1 + 1 + (NUM_LANES * `XLEN) + `PC_BITS /*+ `PC_BITS +  LANE_WIDTH*/)
-    ) rsp_buf (
-        .clk      (clk),
-        .reset    (reset),
-        .valid_in (execute_if.valid),
-        .ready_in (execute_if.ready),
-        .data_in  ({execute_if.data.uuid, execute_if.data.wid, execute_if.data.tmask, execute_if.data.rd, execute_if.data.wb, execute_if.data.pid, execute_if.data.sop, execute_if.data.eop, mat_mul_result, execute_if.data.PC/*, cbr_dest, tid*/}),
-        .data_out ({commit_if.data.uuid, commit_if.data.wid, commit_if.data.tmask, commit_if.data.rd, commit_if.data.wb, commit_if.data.pid, commit_if.data.sop, commit_if.data.eop, mat_mul_result_r, PC_r/*, cbr_dest_r, tid_r*/}),
-        .valid_out (commit_if.valid),
-        .ready_out (commit_if.ready)
-    );
+    // VX_elastic_buffer #(
+    //     .DATAW (`UUID_WIDTH + `NW_WIDTH + NUM_LANES + `NR_BITS + 1 + PID_WIDTH + 1 + 1 + (NUM_LANES * `XLEN) + `PC_BITS /*+ `PC_BITS +  LANE_WIDTH*/)
+    // ) rsp_buf (
+    //     .clk      (clk),
+    //     .reset    (reset),
+    //     .valid_in (execute_if.valid),
+    //     .ready_in (execute_if.ready),
+    //     .data_in  ({execute_if.data.uuid, execute_if.data.wid, execute_if.data.tmask, execute_if.data.rd, execute_if.data.wb, execute_if.data.pid, execute_if.data.sop, execute_if.data.eop, mat_mul_result, execute_if.data.PC/*, cbr_dest, tid*/}),
+    //     .data_out ({commit_if.data.uuid, commit_if.data.wid, commit_if.data.tmask, commit_if.data.rd, commit_if.data.wb, commit_if.data.pid, commit_if.data.sop, commit_if.data.eop, mat_mul_result_r, PC_r/*, cbr_dest_r, tid_r*/}),
+    //     .valid_out (commit_if.valid),
+    //     .ready_out (commit_if.ready)
+    // );
+
+    VX_pipe_buffer #(
+            .DATAW (`UUID_WIDTH + `NW_WIDTH + NUM_LANES + `NR_BITS + 1 + PID_WIDTH + 1 + 1 + (NUM_LANES * `XLEN) + `PC_BITS),
+            .DEPTH (`LATENCY_IMUL + 2 * `MAX(0, 1)) // 4 cycles for the multiply and 2 cycles for addition = 6 
+        ) pipe_buffer (
+             .clk      (clk),
+            .reset    (reset),
+            .valid_in (execute_if.valid),
+            .ready_in (execute_if.ready),
+            .data_in  ({execute_if.data.uuid, execute_if.data.wid, execute_if.data.tmask, execute_if.data.rd, execute_if.data.wb, execute_if.data.pid, execute_if.data.sop, execute_if.data.eop, mat_mul_result, execute_if.data.PC/*, cbr_dest, tid*/}),
+            .data_out ({commit_if.data.uuid, commit_if.data.wid, commit_if.data.tmask, commit_if.data.rd, commit_if.data.wb, commit_if.data.pid, commit_if.data.sop, commit_if.data.eop, mat_mul_result_r, PC_r/*, cbr_dest_r, tid_r*/}),
+            .valid_out (commit_if.valid),
+            .ready_out (commit_if.ready)
+        );
 
     // `UNUSED_VAR (br_op_r)
     // wire is_br_neg  = `INST_BR_IS_NEG(br_op_r);

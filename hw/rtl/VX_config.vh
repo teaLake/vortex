@@ -440,6 +440,10 @@
 `endif
 `endif
 
+`ifndef LATENCY_MATMUL
+`define LATENCY_MATMUL 4
+`endif
+
 // Floating-Point Units ///////////////////////////////////////////////////////
 
 // Size of FPU Request Queue

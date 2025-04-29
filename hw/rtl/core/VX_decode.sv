@@ -202,10 +202,10 @@ module VX_decode import VX_gpu_pkg::*; #(
                         op_args.alu.xtype = `ALU_TYPE_ARITH;
                     end
                 `endif
-                    `INST_R_F7_MATMUL: begin
-                        op_type = `INST_OP_BITS'(`INST_MAT_MUL);
-                        op_args.alu.xtype = `ALU_TYPE_OTHER;
-                    end
+                    // `INST_R_F7_MATMUL: begin
+                    //     op_type = `INST_OP_BITS'(`INST_MAT_MUL);
+                    //     op_args.alu.xtype = `ALU_TYPE_OTHER;
+                    // end
                     default: begin
                         op_type = `INST_OP_BITS'(r_type);
                         op_args.alu.xtype = `ALU_TYPE_ARITH;
@@ -533,6 +533,20 @@ module VX_decode import VX_gpu_pkg::*; #(
                             default:;
                         endcase
                     end
+
+                    `INST_R_F7_MATMUL: begin
+                        ex_type = `EX_ALU;
+                        op_args.alu.is_w = 0;
+                        op_args.alu.use_PC = 0;
+                        op_args.alu.use_imm = 0;
+                        use_rd = 1;
+                        `USED_IREG (rd);
+                        `USED_IREG (rs1);
+                        `USED_IREG (rs2);
+                        op_type = `INST_OP_BITS'(`INST_MAT_MUL);
+                        op_args.alu.xtype = `ALU_TYPE_OTHER;
+                    end
+
                     default:;
                 endcase
             end
