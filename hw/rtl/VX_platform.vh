@@ -14,6 +14,8 @@
 `ifndef VX_PLATFORM_VH
 `define VX_PLATFORM_VH
 
+`define VIVADO
+
 `ifdef SV_DPI
 `include "util_dpi.vh"
 `endif

@@ -340,7 +340,7 @@
         .DATAW  ($bits(dst)), \
         .RESETW (resetw), \
         .DEPTH  (latency) \
-    ) __buffer_ex`__LINE__ ( \
+    ) __buffer_ex``__LINE__ ( \
         .clk      (clk), \
         .reset    (reset), \
         .enable   (ena), \
