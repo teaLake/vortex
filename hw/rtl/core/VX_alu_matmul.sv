@@ -90,6 +90,10 @@ module VX_alu_matmul #(
     localparam LANE_WIDTH     = `UP(LANE_BITS);
     localparam PID_BITS       = `CLOG2(`NUM_THREADS / NUM_LANES);
     localparam PID_WIDTH      = `UP(PID_BITS);
+
+    localparam SIDELENGTH     = $floor($sqrt(NUM_LANES));
+    localparam INNERAXIS      = SIDELENGTH;
+
     // localparam SHIFT_IMM_BITS = `CLOG2(`XLEN);
     `UNUSED_PARAM(LANE_BITS)
     `UNUSED_PARAM(LANE_WIDTH)
@@ -197,17 +201,70 @@ module VX_alu_matmul #(
     //     end
     // end
 
-    always @(*) begin
-        $display("Calculating mat_mul_result");
-        $display("Value of xlen %d", `XLEN);
-        for(int x = 0; x < int'($floor($sqrt(NUM_LANES))); x++) begin
-            for(int y = 0; y < int'($floor($sqrt(NUM_LANES))); y++) begin
-                int index = x + y * int'($floor($sqrt(NUM_LANES)));
-                mat_mul_result[index] = 0;
-                for(int innerAxis = 0; innerAxis < int'($floor($sqrt(NUM_LANES))); innerAxis++) begin
-                    mat_mul_result[index] += alu_in1[innerAxis + y * int'($floor($sqrt(NUM_LANES)))] * alu_in2[x + innerAxis * int'($floor($sqrt(NUM_LANES)))];
-                end
+    // always @(*) begin
+    //     $display("Calculating mat_mul_result");
+    //     $display("Value of xlen %d", `XLEN);
+    //     for(int x = 0; x < int'($floor($sqrt(NUM_LANES))); x++) begin
+    //         for(int y = 0; y < int'($floor($sqrt(NUM_LANES))); y++) begin
+    //             int index = x + y * int'($floor($sqrt(NUM_LANES)));
+    //             mat_mul_result[index] = 0;
+    //             for(int innerAxis = 0; innerAxis < int'($floor($sqrt(NUM_LANES))); innerAxis++) begin
+    //                 mat_mul_result[index] += alu_in1[innerAxis + y * int'($floor($sqrt(NUM_LANES)))] * alu_in2[x + innerAxis * int'($floor($sqrt(NUM_LANES)))];
+    //             end
+    //         end
+    //     end
+    // end
+
+    `define ROWMAJOR(x, y) (x + y * int'($floor($sqrt(NUM_LANES))));
+
+    // Multiply Units
+    logic [SIDELENGTH * SIDELENGTH - 1: 0][INNERAXIS - 1 : 0][`XLEN - 1 : 0] product;
+
+    // 1) Iterate through the output matrix
+    for(genvar x = 0; x < int'($floor($sqrt(NUM_LANES))); x++) begin
+        for(genvar y = 0; y < int'($floor($sqrt(NUM_LANES))); y++) begin
+
+            int index = ROWMAJOR(x, y);
+
+            // 2) Iterate through the inner axis
+            for(genvar j = 0; j < INNERAXIS; j++) begin
+
+                int a_index = ROWMAJOR(j, y);
+                int b_index = ROWMAJOR(x, j);
+                wire [`XLEN:0] mul_in1 = {is_signed_mul_a && execute_if.data.rs1_data[a_index][`XLEN-1], execute_if.data.rs1_data[a_index]};
+                wire [`XLEN:0] mul_in2 = {is_signed_mul_b && execute_if.data.rs2_data[b_index][`XLEN-1], execute_if.data.rs2_data[b_index]};
+
+                VX_multiplier #(
+                    .A_WIDTH( `XLEN),
+                    .B_WIDTH( `XLEN),
+                    .R_WIDTH( `XLEN),
+                    .SIGNED ( 1),
+                    .LATENCY( `LATENCY_IMUL)
+                ) (
+                    .clk(clk),
+                    .enable(commit_if.ready),
+                    .dataa(mul_in1),
+                    .datab(mul_in2),
+                    .result(product[index][j])
+                );
             end
+
+            // 3) Create a pipelined reduction tree
+            VX_reduce_tree_registered #(
+                .DATAW_IN( `XLEN),
+                .DATAW_OUT(  `XLEN),
+                .N( INNERAXIS),
+                .OP( "+"),
+                .INTERMEDIATE_REGISTERED(1),
+                .OUTPUT_REGISTERED(1)
+            ) (
+                .clk(clk),
+                .rst(rst),
+                .enable(commit_if.ready),
+                .data_in(product[index]),
+                .data_out(mat_mul_result[index])
+            )
+
         end
     end
 
@@ -233,27 +290,29 @@ module VX_alu_matmul #(
     // ) rsp_buf (
     //     .clk      (clk),
     //     .reset    (reset),
-    //     .valid_in (execute_if.valid),
-    //     .ready_in (execute_if.ready),
+    //     .valid_in (execute_if.valid), // input
+    //     .ready_in (execute_if.ready), // output
     //     .data_in  ({execute_if.data.uuid, execute_if.data.wid, execute_if.data.tmask, execute_if.data.rd, execute_if.data.wb, execute_if.data.pid, execute_if.data.sop, execute_if.data.eop, mat_mul_result, execute_if.data.PC/*, cbr_dest, tid*/}),
     //     .data_out ({commit_if.data.uuid, commit_if.data.wid, commit_if.data.tmask, commit_if.data.rd, commit_if.data.wb, commit_if.data.pid, commit_if.data.sop, commit_if.data.eop, mat_mul_result_r, PC_r/*, cbr_dest_r, tid_r*/}),
-    //     .valid_out (commit_if.valid),
-    //     .ready_out (commit_if.ready)
+    //     .valid_out (commit_if.valid), // input
+    //     .ready_out (commit_if.ready)  // output
     // );
 
-    VX_pipe_buffer #(
+        VX_pipe_buffer #(
             .DATAW (`UUID_WIDTH + `NW_WIDTH + NUM_LANES + `NR_BITS + 1 + PID_WIDTH + 1 + 1 + (NUM_LANES * `XLEN) + `PC_BITS),
-            .DEPTH (`LATENCY_IMUL + 2 * `MAX(0, 1)) // 4 cycles for the multiply and 2 cycles for addition = 6 
+            .DEPTH (`LATENCY_IMUL + $clog2(INNERAXIS)) // 4 cycles for the multiply and 2 cycles for addition if multiplying 2 4x4 matrix= 6 
         ) pipe_buffer (
              .clk      (clk),
             .reset    (reset),
             .valid_in (execute_if.valid),
             .ready_in (execute_if.ready),
-            .data_in  ({execute_if.data.uuid, execute_if.data.wid, execute_if.data.tmask, execute_if.data.rd, execute_if.data.wb, execute_if.data.pid, execute_if.data.sop, execute_if.data.eop, mat_mul_result, execute_if.data.PC/*, cbr_dest, tid*/}),
-            .data_out ({commit_if.data.uuid, commit_if.data.wid, commit_if.data.tmask, commit_if.data.rd, commit_if.data.wb, commit_if.data.pid, commit_if.data.sop, commit_if.data.eop, mat_mul_result_r, PC_r/*, cbr_dest_r, tid_r*/}),
+            .data_in  ({execute_if.data.uuid, execute_if.data.wid, execute_if.data.tmask, execute_if.data.rd, execute_if.data.wb, execute_if.data.pid, execute_if.data.sop, execute_if.data.eop, /*mat_mul_result,*/ execute_if.data.PC/*, cbr_dest, tid*/}),
+            .data_out ({commit_if.data.uuid, commit_if.data.wid, commit_if.data.tmask, commit_if.data.rd, commit_if.data.wb, commit_if.data.pid, commit_if.data.sop, commit_if.data.eop, /*mat_mul_result_r,*/ PC_r/*, cbr_dest_r, tid_r*/}),
             .valid_out (commit_if.valid),
             .ready_out (commit_if.ready)
         );
+
+        assign mat_mul_result_r = mat_mul_result;
 
     // `UNUSED_VAR (br_op_r)
     // wire is_br_neg  = `INST_BR_IS_NEG(br_op_r);
