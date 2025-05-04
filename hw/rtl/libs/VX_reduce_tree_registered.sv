@@ -20,16 +20,18 @@ module VX_reduce_tree_registered #(
     parameter N          = 1,
     parameter `STRING OP = "+",
     parameter INTERMEDIATE_REGISTERED = 1,
-    parameter OUTPUT_REGISTERED = 0
+    parameter OUTPUT_REGISTERED = 1
 ) (
     input wire clk,
-    input wire rst,
+    input wire reset,
     input wire enable,
     input wire [N-1:0][DATAW_IN-1:0] data_in,
-                .enable(commit_if.ready);
-    output wire [DATAW_OUT-1:0]      data_out
+    output logic [DATAW_OUT-1:0]      data_out
 );
     if (N == 1) begin : g_passthru
+        `UNUSED_VAR (clk);
+        `UNUSED_VAR (enable);
+        `UNUSED_VAR (reset);
         assign data_out = DATAW_OUT'(data_in[0]);
     end else begin : g_reduce
         localparam int N_A = N / 2;
@@ -48,36 +50,39 @@ module VX_reduce_tree_registered #(
         end
 
         VX_reduce_tree_registered #(
-            .clk(clk),
-            .rst(rst),
-            .enable(enable),
             .DATAW_IN  (DATAW_IN),
             .DATAW_OUT (DATAW_OUT),
             .N  (N_A),
             .OP (OP),
             .INTERMEDIATE_REGISTERED(INTERMEDIATE_REGISTERED),
-            .OUTPUT_REGISTER(INTERMEDIATE_REGISTERED)
+            .OUTPUT_REGISTERED(INTERMEDIATE_REGISTERED)
         ) reduce_A (
+            .clk(clk),
+            .reset(reset),
+            .enable(enable),
             .data_in  (in_A),
             .data_out (out_A)
         );
 
         VX_reduce_tree_registered #(
-            .clk(clk),
-            .rst(rst),
-            .enable(enable),
             .DATAW_IN  (DATAW_IN),
             .DATAW_OUT (DATAW_OUT),
             .N  (N_B),
             .OP (OP),
             .INTERMEDIATE_REGISTERED(INTERMEDIATE_REGISTERED),
-            .OUTPUT_REGISTER(INTERMEDIATE_REGISTERED)
+            .OUTPUT_REGISTERED(INTERMEDIATE_REGISTERED)
         ) reduce_B (
+            .clk(clk),
+            .reset(reset),
+            .enable(enable),
             .data_in  (in_B),
             .data_out (out_B)
         );
 
-        if(OUTPUT_REGISTERED == 0) begin : reduce_tree_decision
+        if(OUTPUT_REGISTERED != 1) begin : reduce_tree_decision
+            `UNUSED_VAR (clk);
+            `UNUSED_VAR (enable);
+            `UNUSED_VAR (reset);
             if (OP == "+") begin : g_plus
                 assign data_out = out_A + out_B;
             end else if (OP == "^") begin : g_xor
@@ -89,49 +94,49 @@ module VX_reduce_tree_registered #(
             end else begin : g_error
                 `ERROR(("invalid parameter"));
             end
-        end else 
+        end else begin : reduce_tree_decision_2
             if (OP == "+") begin : g_plus
-                always_ff @ (posedge clk) begin
-                    if(rst) begin
+                always @ (posedge clk) begin
+                    if(reset) begin
                         data_out <= '0;
                     end else if(enable) begin
                         data_out <= out_A + out_B;
                     end else begin
                         data_out <= data_out;
-                    begin
+                    end
                 end
 
             end else if (OP == "^") begin : g_xor
-                always_ff @ (posedge clk) begin
-                    if(rst) begin
+                always @ (posedge clk) begin
+                    if(reset) begin
                         data_out <= '0;
                     end else if(enable) begin
                         data_out <= out_A ^ out_B;
                     end else begin
                         data_out <= data_out;
-                    begin
+                    end
                 end
 
             end else if (OP == "&") begin : g_and
-                always_ff @ (posedge clk) begin
-                    if(rst) begin
+                always @ (posedge clk) begin
+                    if(reset) begin
                         data_out <= '0;
                     end else if(enable) begin
                         data_out <= out_A & out_B;
                     end else begin
                         data_out <= data_out;
-                    begin
+                    end
                 end
 
             end else if (OP == "|") begin : g_or
-                always_ff @ (posedge clk) begin
-                    if(rst) begin
+                always @ (posedge clk) begin
+                    if(reset) begin
                         data_out <= '0;
                     end else if(enable) begin
                         data_out <= out_A | out_B;
                     end else begin
                         data_out <= data_out;
-                    begin
+                    end
                 end
             end else begin : g_error
                 `ERROR(("invalid parameter"));

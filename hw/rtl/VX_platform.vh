@@ -11,6 +11,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+`define VIVADO
+
 `ifndef VX_PLATFORM_VH
 `define VX_PLATFORM_VH
 
@@ -95,7 +97,7 @@
                          /* verilator lint_on UNUSED */
 
 `define UNUSED_SPARAM(x) /* verilator lint_off UNUSED */ \
-                         localparam `STRING __``x = x; \
+                         localparam `STRING __``x = int'(x); \
                          /* verilator lint_on UNUSED */
 
 `define UNUSED_VAR(x)   /* verilator lint_off GENUNNAMED */ \

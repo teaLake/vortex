@@ -12,6 +12,7 @@
 // limitations under the License.
 
 `include "VX_define.vh"
+`define ROWMAJOR(x, y) (x + y * int'($floor($sqrt(NUM_LANES))));
 
 module VX_alu_matmul #(
     parameter `STRING INSTANCE_ID = "",
@@ -91,7 +92,7 @@ module VX_alu_matmul #(
     localparam PID_BITS       = `CLOG2(`NUM_THREADS / NUM_LANES);
     localparam PID_WIDTH      = `UP(PID_BITS);
 
-    localparam SIDELENGTH     = $floor($sqrt(NUM_LANES));
+    localparam SIDELENGTH     = $rtoi($floor($sqrt(NUM_LANES)));
     localparam INNERAXIS      = SIDELENGTH;
 
     // localparam SHIFT_IMM_BITS = `CLOG2(`XLEN);
@@ -215,24 +216,22 @@ module VX_alu_matmul #(
     //     end
     // end
 
-    `define ROWMAJOR(x, y) (x + y * int'($floor($sqrt(NUM_LANES))));
-
     // Multiply Units
     logic [SIDELENGTH * SIDELENGTH - 1: 0][INNERAXIS - 1 : 0][`XLEN - 1 : 0] product;
 
     // 1) Iterate through the output matrix
-    for(genvar x = 0; x < int'($floor($sqrt(NUM_LANES))); x++) begin
-        for(genvar y = 0; y < int'($floor($sqrt(NUM_LANES))); y++) begin
+    for(genvar x = 0; x < int'($floor($sqrt(NUM_LANES))); x++) begin : g_alu_matmul_x
+        for(genvar y = 0; y < int'($floor($sqrt(NUM_LANES))); y++) begin : g_alu_matmul_y
 
-            int index = ROWMAJOR(x, y);
+            int index = `ROWMAJOR(x, y);
 
             // 2) Iterate through the inner axis
-            for(genvar j = 0; j < INNERAXIS; j++) begin
+            for(genvar j = 0; j < INNERAXIS; j++) begin : g_alu_matmul_j
 
-                int a_index = ROWMAJOR(j, y);
-                int b_index = ROWMAJOR(x, j);
-                wire [`XLEN:0] mul_in1 = {is_signed_mul_a && execute_if.data.rs1_data[a_index][`XLEN-1], execute_if.data.rs1_data[a_index]};
-                wire [`XLEN:0] mul_in2 = {is_signed_mul_b && execute_if.data.rs2_data[b_index][`XLEN-1], execute_if.data.rs2_data[b_index]};
+                int a_index = `ROWMAJOR(j, y);
+                int b_index = `ROWMAJOR(x, j);
+                wire [`XLEN - 1:0] mul_in1 = alu_in1[a_index];//{is_signed_mul_a && execute_if.data.rs1_data[a_index][`XLEN-1], execute_if.data.rs1_data[a_index]};
+                wire [`XLEN - 1:0] mul_in2 = alu_in2[b_index];//{is_signed_mul_b && execute_if.data.rs2_data[b_index][`XLEN-1], execute_if.data.rs2_data[b_index]};
 
                 VX_multiplier #(
                     .A_WIDTH( `XLEN),
@@ -240,9 +239,9 @@ module VX_alu_matmul #(
                     .R_WIDTH( `XLEN),
                     .SIGNED ( 1),
                     .LATENCY( `LATENCY_IMUL)
-                ) (
+                ) multiply_modules (
                     .clk(clk),
-                    .enable(commit_if.ready),
+                    .enable(execute_if.ready),
                     .dataa(mul_in1),
                     .datab(mul_in2),
                     .result(product[index][j])
@@ -251,19 +250,19 @@ module VX_alu_matmul #(
 
             // 3) Create a pipelined reduction tree
             VX_reduce_tree_registered #(
-                .DATAW_IN( `XLEN),
-                .DATAW_OUT(  `XLEN),
-                .N( INNERAXIS),
+                .DATAW_IN(`XLEN),
+                .DATAW_OUT(`XLEN),
+                .N(INNERAXIS),
                 .OP( "+"),
                 .INTERMEDIATE_REGISTERED(1),
                 .OUTPUT_REGISTERED(1)
-            ) (
+            ) addition_reduction (
                 .clk(clk),
-                .rst(rst),
-                .enable(commit_if.ready),
+                .reset(reset),
+                .enable(execute_if.ready),
                 .data_in(product[index]),
                 .data_out(mat_mul_result[index])
-            )
+            );
 
         end
     end
@@ -299,7 +298,7 @@ module VX_alu_matmul #(
     // );
 
         VX_pipe_buffer #(
-            .DATAW (`UUID_WIDTH + `NW_WIDTH + NUM_LANES + `NR_BITS + 1 + PID_WIDTH + 1 + 1 + (NUM_LANES * `XLEN) + `PC_BITS),
+            .DATAW (`UUID_WIDTH + `NW_WIDTH + NUM_LANES + `NR_BITS + 1 + PID_WIDTH + 1 + 1 + `PC_BITS),
             .DEPTH (`LATENCY_IMUL + $clog2(INNERAXIS)) // 4 cycles for the multiply and 2 cycles for addition if multiplying 2 4x4 matrix= 6 
         ) pipe_buffer (
              .clk      (clk),
