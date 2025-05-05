@@ -15,7 +15,7 @@
 `define VX_CONFIG_VH
 
 // SYNTHESIS CONFIGURATIONS
-`define SYNTHESIS
+// `define SYNTHESIS
 // `define NUM_CLUSTERS 1 
 // `define NUM_CORES 1 
 // `define NUM_WARPS 1 

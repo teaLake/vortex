@@ -34,7 +34,7 @@ module VX_alu_matmul #(
     // localparam SIDELENGTH     = $rtoi($floor($sqrt(NUM_LANES)));
     localparam SIDELENGTH = 4;
     if(NUM_LANES != 16) begin : UPDATE_SIDELENGTH_CHECK
-        ERROR("NUM_LANES is not 16");
+        `ERROR(("NUM_LANES is not 16"));
     end
 
     localparam INNERAXIS      = SIDELENGTH;
