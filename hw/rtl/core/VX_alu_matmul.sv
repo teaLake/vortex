@@ -31,7 +31,12 @@ module VX_alu_matmul #(
     localparam PID_BITS       = `CLOG2(`NUM_THREADS / NUM_LANES);
     localparam PID_WIDTH      = `UP(PID_BITS);
 
-    localparam SIDELENGTH     = $rtoi($floor($sqrt(NUM_LANES)));
+    // localparam SIDELENGTH     = $rtoi($floor($sqrt(NUM_LANES)));
+    localparam SIDELENGTH = 4;
+    if(NUM_LANES != 16) begin : UPDATE_SIDELENGTH_CHECK
+        ERROR("NUM_LANES is not 16");
+    end
+
     localparam INNERAXIS      = SIDELENGTH;
 
     `UNUSED_PARAM(LANE_BITS)
@@ -52,13 +57,13 @@ module VX_alu_matmul #(
     for(genvar x = 0; x < int'($floor($sqrt(NUM_LANES))); x++) begin : g_alu_matmul_x
         for(genvar y = 0; y < int'($floor($sqrt(NUM_LANES))); y++) begin : g_alu_matmul_y
 
-            int index = `ROWMAJOR(x, y);
+            localparam index = `ROWMAJOR(x, y);
 
             // 2) Iterate through the inner axis
             for(genvar j = 0; j < INNERAXIS; j++) begin : g_alu_matmul_j
 
-                int a_index = `ROWMAJOR(j, y);
-                int b_index = `ROWMAJOR(x, j);
+                localparam a_index = `ROWMAJOR(j, y);
+                localparam b_index = `ROWMAJOR(x, j);
                 wire [`XLEN - 1:0] mul_in1 = alu_in1[a_index];//{is_signed_mul_a && execute_if.data.rs1_data[a_index][`XLEN-1], execute_if.data.rs1_data[a_index]};
                 wire [`XLEN - 1:0] mul_in2 = alu_in2[b_index];//{is_signed_mul_b && execute_if.data.rs2_data[b_index][`XLEN-1], execute_if.data.rs2_data[b_index]};
 

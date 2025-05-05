@@ -11,10 +11,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-`define VIVADO
-
 `ifndef VX_PLATFORM_VH
 `define VX_PLATFORM_VH
+
+// SYNTHESIS CONFIGURATIONS
+`define VIVADO
+// END SYNTHESIS CONFIGURATIONS
 
 `ifdef SV_DPI
 `include "util_dpi.vh"
