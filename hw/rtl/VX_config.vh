@@ -14,6 +14,17 @@
 `ifndef VX_CONFIG_VH
 `define VX_CONFIG_VH
 
+// SYNTHESIS CONFIGURATIONS
+`define SYNTHESIS
+`define NUM_CLUSTERS 1 
+`define NUM_CORES 1 
+`define NUM_WARPS 1 
+`define NUM_THREADS 16 
+`define L2_ENABLE 
+`define L3_ENABLE
+`define XLEN_32
+// END SYNTHESIS CONFIGURATIONS
+
 `ifndef MIN
 `define MIN(x, y)   (((x) < (y)) ? (x) : (y))
 `endif

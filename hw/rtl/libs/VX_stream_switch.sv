@@ -84,7 +84,7 @@ module VX_stream_switch #(
             for (genvar r = 0; r < NUM_REQS; ++r) begin : g_r
                 localparam o = r * NUM_INPUTS + i;
                 if (o < NUM_OUTPUTS) begin : g_valid
-                    wire valid_out_w  = valid_in[i] && (sel_in[i] == LOG_NUM_REQS'(r));
+                    wire valid_out_w  = $unsigned(valid_in[i]) && ($unsigned(sel_in[i]) == $unsigned(LOG_NUM_REQS'(r)));
                     VX_elastic_buffer #(
                         .DATAW    (DATAW),
                         .SIZE     (`TO_OUT_BUF_SIZE(OUT_BUF)),

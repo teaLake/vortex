@@ -52,8 +52,8 @@ module VX_serial_div #(
     for (genvar i = 0; i < LANES; ++i) begin : g_setup
         wire negate_numer = is_signed && numer[i][WIDTHN-1];
         wire negate_denom = is_signed && denom[i][WIDTHD-1];
-        assign numer_qual[i] = negate_numer ? -$signed(numer[i]) : numer[i];
-        assign denom_qual[i] = negate_denom ? -$signed(denom[i]) : denom[i];
+        assign numer_qual[i] = negate_numer ? $unsigned(-$signed(numer[i])) : numer[i];
+        assign denom_qual[i] = negate_denom ? $unsigned(-$signed(denom[i])) : denom[i];
         assign sub_result[i] = working[i][WIDTHN + MIN_ND : WIDTHN] - denom_r[i];
     end
 
@@ -70,7 +70,7 @@ module VX_serial_div #(
         end
         cntr <= cntr - CNTRW'(1);
         if (strobe) begin
-            cntr <= CNTRW'(WIDTHN-1);
+            cntr <= $unsigned(CNTRW'(WIDTHN-1));
         end
     end
 
@@ -91,8 +91,8 @@ module VX_serial_div #(
     for (genvar i = 0; i < LANES; ++i) begin : g_output
         wire [WIDTHQ-1:0] q = working[i][WIDTHQ-1:0];
         wire [WIDTHR-1:0] r = working[i][WIDTHN+WIDTHR:WIDTHN+1];
-        assign quotient[i]  = inv_quot[i] ? -$signed(q) : q;
-        assign remainder[i] = inv_rem[i] ? -$signed(r) : r;
+        assign quotient[i]  = inv_quot[i] ? $unsigned(-$signed(q)) : q;
+        assign remainder[i] = inv_rem[i] ? $unsigned(-$signed(r)) : r;
     end
 
     assign busy = busy_r;

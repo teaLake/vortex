@@ -43,7 +43,7 @@ module VX_alu_int #(
     reg  [NUM_LANES-1:0][`XLEN-1:0] shr_zic_result;
     reg  [NUM_LANES-1:0][`XLEN-1:0] msc_result;
 
-    wire [NUM_LANES-1:0][`XLEN-1:0] add_result_w;
+    logic [NUM_LANES-1:0][`XLEN-1:0] add_result_w;
     wire [NUM_LANES-1:0][`XLEN-1:0] sub_result_w;
     wire [NUM_LANES-1:0][`XLEN-1:0] shr_result_w;
     reg  [NUM_LANES-1:0][`XLEN-1:0] msc_result_w;
@@ -73,14 +73,14 @@ module VX_alu_int #(
 
     for (genvar i = 0; i < NUM_LANES; ++i) begin : g_add_result
         assign add_result[i] = alu_in1_PC[i] + alu_in2_imm[i];
-        assign add_result_w[i] = `XLEN'($signed(alu_in1[i][31:0] + alu_in2_imm[i][31:0]));
+        assign add_result_w[i] = $unsigned(`XLEN'($signed(alu_in1[i][31:0] + alu_in2_imm[i][31:0])));
     end
 
     for (genvar i = 0; i < NUM_LANES; ++i) begin : g_sub_result
         wire [`XLEN:0] sub_in1 = {is_signed & alu_in1[i][`XLEN-1], alu_in1[i]};
         wire [`XLEN:0] sub_in2 = {is_signed & alu_in2_br[i][`XLEN-1], alu_in2_br[i]};
         assign sub_result[i] = sub_in1 - sub_in2;
-        assign sub_result_w[i] = `XLEN'($signed(alu_in1[i][31:0] - alu_in2_imm[i][31:0]));
+        assign sub_result_w[i] = $unsigned(`XLEN'($signed(alu_in1[i][31:0] - alu_in2_imm[i][31:0])));
     end
 
     for (genvar i = 0; i < NUM_LANES; ++i) begin : g_shr_result
@@ -93,13 +93,13 @@ module VX_alu_int #(
                 end
             `endif
                 default: begin // SRL, SRA, SRLI, SRAI
-                    shr_zic_result[i] = `XLEN'($signed(shr_in1) >>> alu_in2_imm[i][SHIFT_IMM_BITS-1:0]);
+                    shr_zic_result[i] = $unsigned(`XLEN'($signed(shr_in1) >>> alu_in2_imm[i][SHIFT_IMM_BITS-1:0]));
                 end
             endcase
         end
         wire [32:0] shr_in1_w = {is_signed && alu_in1[i][31], alu_in1[i][31:0]};
-        wire [31:0] shr_res_w = 32'($signed(shr_in1_w) >>> alu_in2_imm[i][4:0]);
-        assign shr_result_w[i] = `XLEN'($signed(shr_res_w));
+        wire [31:0] shr_res_w = $unsigned(32'($signed(shr_in1_w) >>> alu_in2_imm[i][4:0]));
+        assign shr_result_w[i] = $unsigned(`XLEN'($signed(shr_res_w)));
     end
 
     for (genvar i = 0; i < NUM_LANES; ++i) begin : g_msc_result
@@ -111,7 +111,7 @@ module VX_alu_int #(
                 2'b11: msc_result[i] = alu_in1[i] << alu_in2_imm[i][SHIFT_IMM_BITS-1:0]; // SLL
             endcase
         end
-        assign msc_result_w[i] = `XLEN'($signed(alu_in1[i][31:0] << alu_in2_imm[i][4:0])); // SLLW
+        assign msc_result_w[i] = $unsigned(`XLEN'($signed(alu_in1[i][31:0] << alu_in2_imm[i][4:0]))); // SLLW
     end
 
     for (genvar i = 0; i < NUM_LANES; ++i) begin : g_alu_result

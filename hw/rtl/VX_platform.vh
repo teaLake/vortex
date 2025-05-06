@@ -14,7 +14,9 @@
 `ifndef VX_PLATFORM_VH
 `define VX_PLATFORM_VH
 
+// SYNTHESIS CONFIGURATIONS
 `define VIVADO
+// END SYNTHESIS CONFIGURATIONS
 
 `ifdef SV_DPI
 `include "util_dpi.vh"
