@@ -36,7 +36,9 @@ void kernel_body(kernel_arg_t *arg) {
 
     // Compute partial sum for the local tile
     for (uint32_t j = 0; j < tile_size; ++j) {
-      sum += local_A[l_row * tile_size + j] * local_B[j * tile_size + l_col];
+      int a = local_A[l_row * tile_size + j];
+      int b = local_B[j * tile_size + l_col];
+      sum += a * b;
     }
 
     // Synchronize all warps in current group

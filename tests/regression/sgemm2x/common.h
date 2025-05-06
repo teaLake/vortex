@@ -2,7 +2,7 @@
 #define _COMMON_H_
 
 #ifndef TYPE
-#define TYPE float
+#define TYPE int
 #endif
 
 typedef struct {
